@@ -11,7 +11,7 @@ index fbf9d6a..5bb3d48 100644
  %endif
  %if 0%{?fedora}
  %global vendoroption --with-vendor="The Fedora Project"
-@@ -998,17 +998,6 @@ git config gc.auto 0 # disable auto packing
+@@ -1018,17 +1018,6 @@ git config gc.auto 0 # disable auto packing
  git add -A
  git commit -q -a -m %{name}-%{version}
  

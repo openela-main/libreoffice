@@ -1,0 +1,37 @@
+From 22eb26fe2f4ecf57bff0e1bb377f7af2e7a9e7e4 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Caol=C3=A1n=20McNamara?= <caolanm@redhat.com>
+Date: Wed, 4 Nov 2020 09:28:02 +0000
+Subject: [PATCH 3/8] copy_paste_error data1 looks like a copy-paste error
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Change-Id: I937743f8d1789c68ed960c6a5aede0508dfa7bcd
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/105282
+Tested-by: Jenkins
+Reviewed-by: Caolán McNamara <caolanm@redhat.com>
+(cherry picked from commit 1aa5e450f065bfdae8c354344f23b897f48a166f)
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/105457
+Tested-by: Jean-Pierre Ledure <jp@ledure.be>
+Reviewed-by: Jean-Pierre Ledure <jp@ledure.be>
+(cherry picked from commit 4a6ca8920afc0bbb8e36869416745d5b0163313c)
+---
+ wizards/source/access2base/access2base.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/wizards/source/access2base/access2base.py b/wizards/source/access2base/access2base.py
+index af14a880cb3d..3cdc758e820d 100644
+--- a/wizards/source/access2base/access2base.py
++++ b/wizards/source/access2base/access2base.py
+@@ -902,7 +902,7 @@ class Basic(object, metaclass = _Singleton):
+     @classmethod
+     def DateDiff(cls, add, date1, date2, weekstart = 1, yearstart = 1):
+         if isinstance(date1, datetime.datetime): date1 = date1.isoformat()
+-        if isinstance(date2, datetime.datetime): date2 = date1.isoformat()
++        if isinstance(date2, datetime.datetime): date2 = date2.isoformat()
+         return cls.M('PyDateDiff', _WRAPPERMODULE, add, date1, date2, weekstart, yearstart)
+ 
+     @classmethod
+-- 
+2.28.0
+

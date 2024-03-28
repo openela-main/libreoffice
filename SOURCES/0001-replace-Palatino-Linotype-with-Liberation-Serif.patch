@@ -1,0 +1,26 @@
+From 06b19641b0eac7b7992fae861eb4807397c9aee4 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Caol=C3=A1n=20McNamara?= <caolanm@redhat.com>
+Date: Wed, 28 Oct 2020 10:03:23 +0000
+Subject: [PATCH] replace 'Palatino Linotype' with 'Liberation Serif'
+
+for consistent font replacement
+
+Change-Id: I3c124c0adcab8ac2dd7f989c2fa5c97182e32b64
+---
+ sw/qa/extras/layout/data/forcepoint75-1.rtf | Bin 88740 -> 88738 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/sw/qa/extras/layout/data/forcepoint75-1.rtf b/sw/qa/extras/layout/data/forcepoint75-1.rtf
+index 01a52963757d8568e5ae8b80b7767c924c37a407..263a585c57e162caf1c9f9dd3aee4f3d8aa3edd2 100644
+GIT binary patch
+delta 85
+zcmZ3om37fp)(y#wVm_HksYQt;nfZAN!Kp==Y1XyXF=>XA=QD{5pi50&#At*e*!+}n
+M`%^~7{Sk~@09cV9Z2$lO
+
+delta 104
+zcmZ3qm37Hh)(y#w_5q1Gi6xnN`3gQjqNK7Q)w;GiCe1J=ttdY?F)t>$Al)D)Ejc5x
+ds5rI6KmkMb<OPgIf*7LBj~KT<Vr1MO0RTX3C};ox
+
+-- 
+2.26.2
+

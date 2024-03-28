@@ -1,0 +1,52 @@
+From fa0371ce0456bfe355c36df0741ff23daeccb3a3 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Caol=C3=A1n=20McNamara?= <caolanm@redhat.com>
+Date: Tue, 3 Nov 2020 14:04:37 +0000
+Subject: [PATCH 8/8] Resolves: tdf#137215 restore original modality before
+ dialog loop ends
+
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/105214
+Tested-by: Jenkins
+Reviewed-by: Adolfo Jayme Barrientos <fitojb@ubuntu.com>
+(cherry picked from commit 022c11602d2101b49724b5cf104cc6c70b5a5e4b)
+
+Change-Id: I83467e28534b781c51b8d75a023e41f3c6a03903
+---
+ sc/source/ui/dbgui/validate.cxx | 8 ++++++++
+ sc/source/ui/inc/validate.hxx   | 2 ++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/sc/source/ui/dbgui/validate.cxx b/sc/source/ui/dbgui/validate.cxx
+index 41bc913db911..73e04cc44706 100644
+--- a/sc/source/ui/dbgui/validate.cxx
++++ b/sc/source/ui/dbgui/validate.cxx
+@@ -95,6 +95,14 @@ ScValidationDlg::ScValidationDlg(weld::Window* pParent, const SfxItemSet* pArgSe
+     AddTabPage("erroralert", ScTPValidationError::Create, nullptr);
+ }
+ 
++void ScValidationDlg::EndDialog()
++{
++    // tdf#137215 ensure original modalality of true is restored before dialog loop ends
++    if (m_bOwnRefHdlr)
++        RemoveRefDlg(true);
++    ScValidationDlgBase::EndDialog();
++}
++
+ ScValidationDlg::~ScValidationDlg()
+ {
+     if (m_bOwnRefHdlr)
+diff --git a/sc/source/ui/inc/validate.hxx b/sc/source/ui/inc/validate.hxx
+index 2c562717f921..cb88b9e8b40e 100644
+--- a/sc/source/ui/inc/validate.hxx
++++ b/sc/source/ui/inc/validate.hxx
+@@ -176,6 +176,8 @@ public:
+ 
+     void            SetModal(bool bModal) { m_xDialog->set_modal(bModal); }
+ 
++    virtual void EndDialog() override;
++
+     virtual void            SetReference( const ScRange& rRef, ScDocument* pDoc ) override
+     {
+         if ( m_pHandler && m_pSetReferenceHdl )
+-- 
+2.28.0
+

@@ -1,0 +1,137 @@
+From 7efe51c401ee469ae4835994e5f11b158fd354b9 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Caol=C3=A1n=20McNamara?= <caolanm@redhat.com>
+Date: Wed, 4 Nov 2020 13:01:53 +0000
+Subject: [PATCH 7/8] tdf#137982 m_xFrame is already disposed
+
+move the frame cleanup into a helper that listens to see if it got
+disposed by the preview itself
+
+Change-Id: I523285268118300f18b0f0f0a10fab7a9cced9c6
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/105221
+Tested-by: Jenkins
+Reviewed-by: Michael Stahl <michael.stahl@cib.de>
+(cherry picked from commit a986db4b2d24669e502e447036851e118cc23036)
+---
+ sw/source/ui/dbui/dbtablepreviewdialog.cxx | 53 ++++++++++++++++++----
+ sw/source/ui/dbui/dbtablepreviewdialog.hxx |  4 +-
+ 2 files changed, 46 insertions(+), 11 deletions(-)
+
+diff --git a/sw/source/ui/dbui/dbtablepreviewdialog.cxx b/sw/source/ui/dbui/dbtablepreviewdialog.cxx
+index 23e7984623d8..8f2d92b1c7d5 100644
+--- a/sw/source/ui/dbui/dbtablepreviewdialog.cxx
++++ b/sw/source/ui/dbui/dbtablepreviewdialog.cxx
+@@ -20,6 +20,8 @@
+ #include <swtypes.hxx>
+ #include "dbtablepreviewdialog.hxx"
+ #include <comphelper/processfactory.hxx>
++#include <cppuhelper/implbase.hxx>
++#include <com/sun/star/document/XEventListener.hpp>
+ #include <com/sun/star/frame/Frame.hpp>
+ #include <toolkit/helper/vclunohelper.hxx>
+ 
+@@ -32,6 +34,34 @@ using namespace ::com::sun::star::beans;
+ using namespace ::com::sun::star::lang;
+ using namespace ::com::sun::star::util;
+ 
++class DBTablePreviewFrame
++    : public cppu::WeakImplHelper<lang::XEventListener>
++{
++private:
++    css::uno::Reference<css::frame::XFrame2> m_xFrame;
++
++    virtual void SAL_CALL disposing(const lang::EventObject& /*Source*/) override
++    {
++        m_xFrame.clear();
++    }
++
++public:
++    DBTablePreviewFrame(css::uno::Reference<css::frame::XFrame2>& rFrame)
++        : m_xFrame(rFrame)
++    {
++    }
++
++    void cleanup()
++    {
++        if (m_xFrame.is())
++        {
++            m_xFrame->setComponent(nullptr, nullptr);
++            m_xFrame->dispose();
++            m_xFrame.clear();
++        }
++    }
++};
++
+ SwDBTablePreviewDialog::SwDBTablePreviewDialog(weld::Window* pParent, uno::Sequence< beans::PropertyValue> const & rValues)
+     : SfxDialogController(pParent, "modules/swriter/ui/tablepreviewdialog.ui", "TablePreviewDialog")
+     , m_xDescriptionFI(m_xBuilder->weld_label("description"))
+@@ -51,22 +81,26 @@ SwDBTablePreviewDialog::SwDBTablePreviewDialog(weld::Window* pParent, uno::Seque
+         m_xDescriptionFI->set_label(sDescription.replaceFirst("%1", sTemp));
+     }
+ 
++    css::uno::Reference<css::frame::XFrame2> xFrame;
+     try
+     {
+         // create a frame wrapper for myself
+-        m_xFrame = frame::Frame::create( comphelper::getProcessComponentContext() );
+-        m_xFrame->initialize(m_xBeamerWIN->CreateChildFrame());
++        xFrame = frame::Frame::create( comphelper::getProcessComponentContext() );
++        xFrame->initialize(m_xBeamerWIN->CreateChildFrame());
+     }
+     catch (uno::Exception const &)
+     {
+-        m_xFrame.clear();
++        xFrame.clear();
+     }
+-    if (m_xFrame.is())
++    if (xFrame.is())
+     {
++        m_xFrameListener.set(new DBTablePreviewFrame(xFrame));
++        xFrame->addEventListener(m_xFrameListener.get());
++
+         util::URL aURL;
+         aURL.Complete = ".component:DB/DataSourceBrowser";
+-        uno::Reference<frame::XDispatch> xD = m_xFrame->queryDispatch(aURL, "", 0x0C);
+-        if(xD.is())
++        uno::Reference<frame::XDispatch> xD = xFrame->queryDispatch(aURL, "", 0x0C);
++        if (xD.is())
+         {
+             xD->dispatch(aURL, rValues);
+             m_xBeamerWIN->show();
+@@ -76,11 +110,10 @@ SwDBTablePreviewDialog::SwDBTablePreviewDialog(weld::Window* pParent, uno::Seque
+ 
+ SwDBTablePreviewDialog::~SwDBTablePreviewDialog()
+ {
+-    if(m_xFrame.is())
++    if (m_xFrameListener)
+     {
+-        m_xFrame->setComponent(nullptr, nullptr);
+-        m_xFrame->dispose();
+-        m_xFrame.clear();
++        m_xFrameListener->cleanup();
++        m_xFrameListener.clear();
+     }
+ }
+ 
+diff --git a/sw/source/ui/dbui/dbtablepreviewdialog.hxx b/sw/source/ui/dbui/dbtablepreviewdialog.hxx
+index ec2c58d92bf3..27e6e83d39ca 100644
+--- a/sw/source/ui/dbui/dbtablepreviewdialog.hxx
++++ b/sw/source/ui/dbui/dbtablepreviewdialog.hxx
+@@ -27,12 +27,14 @@ namespace com{ namespace sun{ namespace star{
+     namespace frame{ class XFrame2;     }
+     }}}
+ 
++class DBTablePreviewFrame;
++
+ class SwDBTablePreviewDialog : public SfxDialogController
+ {
+     std::unique_ptr<weld::Label> m_xDescriptionFI;
+     std::unique_ptr<weld::Container> m_xBeamerWIN;
+ 
+-    css::uno::Reference< css::frame::XFrame2 >         m_xFrame;
++    rtl::Reference<DBTablePreviewFrame> m_xFrameListener;
+ public:
+     SwDBTablePreviewDialog(weld::Window* pParent,
+             css::uno::Sequence< css::beans::PropertyValue> const & rValues  );
+-- 
+2.28.0
+

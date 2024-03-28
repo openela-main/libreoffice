@@ -1,0 +1,59 @@
+From 9f393ee10ae198063bbe3b71c2c87262e7880a34 Mon Sep 17 00:00:00 2001
+From: Stephan Bergmann <sbergman@redhat.com>
+Date: Wed, 23 Sep 2020 11:53:11 +0200
+Subject: [PATCH] Read MOSDocumentLockFile UTF-16 string data with same
+ endianness
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+...as MSODocumentLockFile::WriteEntryToStream has written it to (i.e.,
+always as UTF-16LE, assuming that is actually the right format to use).  The
+discrepancy between writing and reading the string data appears to be present
+ever since the code's introduction in 5db1e20b8b0942dac2d50f3cd34532bb61147020
+"Introduce new lockfile handler for MSO like lockfiles".
+
+This caused CppunitTest_svl_lockfiles to fail on (big-endian) s390x Linux with
+
+> svl/qa/unit/lockfiles/test_lockfiles.cxx:578:(anonymous namespace)::LockfileTest::testWordLockFileRT
+> equality assertion failed
+> - Expected: LockFile Test
+> - Actual  : 䰀漀挀欀䘀椀氀攀 吀攀猀琀
+
+etc.
+
+Change-Id: I97267aa14a3a926e7fd7bb1d2ce7d2de05d52a64
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/103238
+Tested-by: Jenkins
+Reviewed-by: Stephan Bergmann <sbergman@redhat.com>
+(cherry picked from commit 1b9fa11a0869246fe0433b79aab30dd216cf92b6)
+---
+ svl/source/misc/msodocumentlockfile.cxx | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/svl/source/misc/msodocumentlockfile.cxx b/svl/source/misc/msodocumentlockfile.cxx
+index 9650db03999f..0c857ffb53ec 100644
+--- a/svl/source/misc/msodocumentlockfile.cxx
++++ b/svl/source/misc/msodocumentlockfile.cxx
+@@ -228,8 +228,16 @@ LockFileEntry MSODocumentLockFile::GetLockData()
+                 nUTF16Len = *++pBuf; // use Excel/PowerPoint position
+ 
+             if (nUTF16Len > 0 && nUTF16Len <= 52) // skip wrong format
+-                aResult[LockFileComponent::OOOUSERNAME]
+-                    = OUString(reinterpret_cast<const sal_Unicode*>(pBuf + 2), nUTF16Len);
++            {
++                OUStringBuffer str(nUTF16Len);
++                sal_uInt8 const* p = reinterpret_cast<sal_uInt8 const*>(pBuf + 2);
++                for (int i = 0; i != nUTF16Len; ++i)
++                {
++                    str.append(sal_Unicode(p[0] | (sal_uInt32(p[1]) << 8)));
++                    p += 2;
++                }
++                aResult[LockFileComponent::OOOUSERNAME] = str.makeStringAndClear();
++            }
+         }
+     }
+     return aResult;
+-- 
+2.33.1
+

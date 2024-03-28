@@ -1,0 +1,46 @@
+From ceac69bff953ebd9b54a1f3a032079523c4414d0 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Caol=C3=A1n=20McNamara?= <caolanm@redhat.com>
+Date: Sun, 25 Oct 2020 20:23:39 +0000
+Subject: [PATCH] 0.5.1 is sufficient
+
+Change-Id: I710a83de8f261d6164eb760d3290c963a5bbe5e1
+---
+ configure.ac | 15 +--------------
+ 1 file changed, 1 insertion(+), 14 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index a6696df15f06..c17fdf5b0d22 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -7050,7 +7050,7 @@ dnl Check for system libcmis
+ dnl ===================================================================
+ # libcmis requires curl and we can't build curl for iOS
+ if test $_os != iOS; then
+-    libo_CHECK_SYSTEM_MODULE([libcmis],[LIBCMIS],[libcmis-0.5 >= 0.5.2])
++    libo_CHECK_SYSTEM_MODULE([libcmis],[LIBCMIS],[libcmis-0.5 >= 0.5.0])
+     ENABLE_LIBCMIS=TRUE
+ else
+     ENABLE_LIBCMIS=
+@@ -7090,19 +7090,6 @@ elif test "$GCC" = "yes" -o "$COM_IS_CLANG" = TRUE; then
+             #include <functional>
+             #include <vector>
+ 
+-            #if defined SYSTEM_LIBCMIS
+-            // See ucb/source/ucp/cmis/auth_provider.hxx:
+-            #if !defined __clang__
+-            #pragma GCC diagnostic push
+-            #pragma GCC diagnostic ignored "-Wdeprecated"
+-            #pragma GCC diagnostic ignored "-Wunused-but-set-parameter"
+-            #endif
+-            #include <libcmis/libcmis.hxx>
+-            #if !defined __clang__
+-            #pragma GCC diagnostic pop
+-            #endif
+-            #endif
+-
+             void f(std::vector<int> & v, std::function<bool(int, int)> fn) {
+                 std::sort(v.begin(), v.end(), fn);
+             }
+-- 
+2.26.2
+

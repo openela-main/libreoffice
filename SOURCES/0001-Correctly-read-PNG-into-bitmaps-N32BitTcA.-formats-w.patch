@@ -1,0 +1,65 @@
+From 41594786266265c1b7d5116ab85b38af0cd1fd59 Mon Sep 17 00:00:00 2001
+From: Stephan Bergmann <sbergman@redhat.com>
+Date: Wed, 23 Sep 2020 12:01:35 +0200
+Subject: [PATCH] Correctly read PNG into bitmaps N32BitTcA... formats (where
+ alpha comes first)
+
+This appears to be a regression introduced with
+86ea64f216819696cd86d1926aff0a138ace2baf "Support for native 32bit Bitmap in VCL
+and SVP (cairo) backend".  It caused CppunitTest_vcl_png_test to fail on
+(big-endian) Linux s390x with
+
+> vcl/qa/cppunit/png/PngFilterTest.cxx:176:PngFilterTest::testPng
+> equality assertion failed
+> - Expected: c[ff000040]
+> - Actual  : c[0000ff40]
+
+where eFormat happens to be ScanlineFormat::N32BitTcArgb, vs.
+ScanlineFormat::N32BitTcBgra on e.g. Linux x86-64 (and which thus didn't notice
+the lack of support for N32BitTcA... formats where alpha goes first instead of
+last).
+
+Change-Id: Id6030468718f6ef831b42f2b5ad7ba2c4c46a805
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/103240
+Tested-by: Jenkins
+Reviewed-by: Stephan Bergmann <sbergman@redhat.com>
+(cherry picked from commit 0387077e6647d7a30fd36d4ec41dfc559afe45c3)
+---
+ vcl/source/filter/png/PngImageReader.cxx | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/vcl/source/filter/png/PngImageReader.cxx b/vcl/source/filter/png/PngImageReader.cxx
+index 958cae34eb46..6e9f3825face 100644
+--- a/vcl/source/filter/png/PngImageReader.cxx
++++ b/vcl/source/filter/png/PngImageReader.cxx
+@@ -188,6 +188,8 @@ bool reader(SvStream& rStream, BitmapEx& rBitmapEx, bool bUseBitmap32)
+                     for (auto& rRow : aRows)
+                         rRow.resize(aRowSizeBytes, 0);
+ 
++                    auto const alphaFirst = (eFormat == ScanlineFormat::N32BitTcAbgr
++                                             || eFormat == ScanlineFormat::N32BitTcArgb);
+                     for (int pass = 0; pass < nNumberOfPasses; pass++)
+                     {
+                         for (png_uint_32 y = 0; y < height; y++)
+@@ -199,10 +201,17 @@ bool reader(SvStream& rStream, BitmapEx& rBitmapEx, bool bUseBitmap32)
+                             for (size_t i = 0; i < aRowSizeBytes; i += 4)
+                             {
+                                 sal_Int8 alpha = pRow[i + 3];
++                                if (alphaFirst)
++                                {
++                                    pScanline[iColor++] = alpha;
++                                }
+                                 pScanline[iColor++] = vcl::bitmap::premultiply(pRow[i + 0], alpha);
+                                 pScanline[iColor++] = vcl::bitmap::premultiply(pRow[i + 1], alpha);
+                                 pScanline[iColor++] = vcl::bitmap::premultiply(pRow[i + 2], alpha);
+-                                pScanline[iColor++] = alpha;
++                                if (!alphaFirst)
++                                {
++                                    pScanline[iColor++] = alpha;
++                                }
+                             }
+                         }
+                     }
+-- 
+2.33.1
+

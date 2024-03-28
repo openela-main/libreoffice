@@ -1,0 +1,26 @@
+From 92c95c8c3724f267e57827f69f93ef4e6387f793 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Caol=C3=A1n=20McNamara?= <caolanm@redhat.com>
+Date: Sun, 25 Oct 2020 21:14:10 +0000
+Subject: [PATCH] 1.2.25 is sufficient
+
+Change-Id: Ie184fbaaf6eea0ae1a39bf142d3391768be9607d
+---
+ configure.ac | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/configure.ac b/configure.ac
+index a62c131a6d0e..c815ea2c3f8b 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -8364,7 +8364,7 @@ libo_CHECK_SYSTEM_MODULE([expat], [EXPAT], [expat])
+ dnl ===================================================================
+ dnl Check for system xmlsec
+ dnl ===================================================================
+-libo_CHECK_SYSTEM_MODULE([xmlsec], [XMLSEC], [xmlsec1-nss >= 1.2.28])
++libo_CHECK_SYSTEM_MODULE([xmlsec], [XMLSEC], [xmlsec1-nss >= 1.2.25])
+ 
+ AC_MSG_CHECKING([whether to enable Embedded OpenType support])
+ if test "$_os" != "WINNT" -a "$_os" != "Darwin" -a "$enable_eot" = "yes"; then
+-- 
+2.26.2
+

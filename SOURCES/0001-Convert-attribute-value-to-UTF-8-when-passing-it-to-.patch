@@ -1,0 +1,50 @@
+From 78fd31b17931e1217d3b11fcbd13a41d79d99055 Mon Sep 17 00:00:00 2001
+From: Stephan Bergmann <sbergman@redhat.com>
+Date: Wed, 23 Sep 2020 11:41:05 +0200
+Subject: [PATCH] Convert attribute value to UTF-8 when passing it to libxml2
+
+Using toUtf8, requiring the OUString to actually contain well-formed data, but
+which is likely OK for this test-code--only function, and is also what similar
+dumpAsXml functions e.g. in editeng/source/items/textitem.cxx already use.
+
+This appears to have been broken ever since the code's introduction in
+553f10c71a2cc92f5f5890e24948f5277e3d2758 "add dumpAsXml() to more pool items",
+and it would typically only have written the leading zero or one
+(depending on the architecture's endianness) characters.  (I ran across it on
+big-endian s390x, where CppunitTest_sd_tiledrendering
+SdTiledRenderingTest::testTdf104405 failed because of
+
+> Entity: line 2: parser error : Input is not proper UTF-8, indicate encoding !
+> Bytes: 0xCF 0x22 0x2F 0x3E
+> ation=""/><SfxPoolItem whichId="4017" typeName="13SvxBulletItem" presentation="%
+>                                                                                ^
+
+apparently reported from within libxml2.)
+
+Change-Id: I4b116d3be84098bd8b8a13b6937da70a1ee02c7f
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/103236
+Reviewed-by: Noel Grandin <noel.grandin@collabora.co.uk>
+Reviewed-by: Stephan Bergmann <sbergman@redhat.com>
+Tested-by: Jenkins
+(cherry picked from commit fd9422febc384208558487bfe4a69ec89ab0ddca)
+---
+ svl/source/items/poolitem.cxx | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/svl/source/items/poolitem.cxx b/svl/source/items/poolitem.cxx
+index ec37b68d3417..ad07a0b60b4b 100644
+--- a/svl/source/items/poolitem.cxx
++++ b/svl/source/items/poolitem.cxx
+@@ -548,7 +548,8 @@ void SfxPoolItem::dumpAsXml(xmlTextWriterPtr pWriter) const
+     OUString rText;
+     IntlWrapper aIntlWrapper(SvtSysLocale().GetUILanguageTag());
+     if (GetPresentation( SfxItemPresentation::Complete, MapUnit::Map100thMM, MapUnit::Map100thMM, rText, aIntlWrapper))
+-        xmlTextWriterWriteAttribute(pWriter, BAD_CAST("presentation"), BAD_CAST(rText.getStr()));
++        xmlTextWriterWriteAttribute(
++            pWriter, BAD_CAST("presentation"), BAD_CAST(rText.toUtf8().getStr()));
+     xmlTextWriterEndElement(pWriter);
+ }
+ 
+-- 
+2.33.1
+

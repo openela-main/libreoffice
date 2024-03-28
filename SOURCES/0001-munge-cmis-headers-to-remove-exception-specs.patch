@@ -1,0 +1,1922 @@
+From 9300cfc3cab41e0ba50eb515792286932dbcbe1e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Caol=C3=A1n=20McNamara?= <caolanm@redhat.com>
+Date: Mon, 26 Oct 2020 19:41:16 +0000
+Subject: [PATCH] munge cmis headers to remove exception specs
+
+Change-Id: Ieea3838f4acbaabd8ee5c219a69967889292a5ca
+---
+ include/libcmis/allowable-actions.hxx | 130 +++++++++++++++
+ include/libcmis/document.hxx          | 146 +++++++++++++++++
+ include/libcmis/exception.hxx         |  60 +++++++
+ include/libcmis/folder.hxx            |  83 ++++++++++
+ include/libcmis/libcmis.hxx           |  47 ++++++
+ include/libcmis/oauth2-data.hxx       |  76 +++++++++
+ include/libcmis/object-type.hxx       | 143 +++++++++++++++++
+ include/libcmis/object.hxx            | 217 ++++++++++++++++++++++++++
+ include/libcmis/property-type.hxx     | 125 +++++++++++++++
+ include/libcmis/property.hxx          |  88 +++++++++++
+ include/libcmis/rendition.hxx         |  88 +++++++++++
+ include/libcmis/repository.hxx        | 117 ++++++++++++++
+ include/libcmis/session-factory.hxx   | 149 ++++++++++++++++++
+ include/libcmis/session.hxx           | 100 ++++++++++++
+ include/libcmis/xml-utils.hxx         | 167 ++++++++++++++++++++
+ include/libcmis/xmlserializable.hxx   |  46 ++++++
+ 16 files changed, 1782 insertions(+)
+ create mode 100644 include/libcmis/allowable-actions.hxx
+ create mode 100644 include/libcmis/document.hxx
+ create mode 100644 include/libcmis/exception.hxx
+ create mode 100644 include/libcmis/folder.hxx
+ create mode 100644 include/libcmis/libcmis.hxx
+ create mode 100644 include/libcmis/oauth2-data.hxx
+ create mode 100644 include/libcmis/object-type.hxx
+ create mode 100644 include/libcmis/object.hxx
+ create mode 100644 include/libcmis/property-type.hxx
+ create mode 100644 include/libcmis/property.hxx
+ create mode 100644 include/libcmis/rendition.hxx
+ create mode 100644 include/libcmis/repository.hxx
+ create mode 100644 include/libcmis/session-factory.hxx
+ create mode 100644 include/libcmis/session.hxx
+ create mode 100644 include/libcmis/xml-utils.hxx
+ create mode 100644 include/libcmis/xmlserializable.hxx
+
+diff --git a/include/libcmis/allowable-actions.hxx b/include/libcmis/allowable-actions.hxx
+new file mode 100644
+index 000000000000..24998761d10f
+--- /dev/null
++++ b/include/libcmis/allowable-actions.hxx
+@@ -0,0 +1,130 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _ALLOWABLE_ACTIONS_HXX_
++#define _ALLOWABLE_ACTIONS_HXX_
++
++#include <map>
++#include <string>
++
++#include <boost/shared_ptr.hpp>
++#include <libxml/tree.h>
++
++#include "exception.hxx"
++
++namespace libcmis
++{
++    class Object;
++
++    class ObjectAction
++    {
++        public:
++            enum Type
++            {
++                DeleteObject,
++                UpdateProperties,
++                GetFolderTree,
++                GetProperties,
++                GetObjectRelationships,
++                GetObjectParents,
++                GetFolderParent,
++                GetDescendants,
++                MoveObject,
++                DeleteContentStream,
++                CheckOut,
++                CancelCheckOut,
++                CheckIn,
++                SetContentStream,
++                GetAllVersions,
++                AddObjectToFolder,
++                RemoveObjectFromFolder,
++                GetContentStream,
++                ApplyPolicy,
++                GetAppliedPolicies,
++                RemovePolicy,
++                GetChildren,
++                CreateDocument,
++                CreateFolder,
++                CreateRelationship,
++                DeleteTree,
++                GetRenditions,
++                GetACL,
++                ApplyACL
++            };
++
++        private:
++            Type m_type;
++            bool m_enabled;
++            bool m_valid;
++
++        public:
++            ObjectAction( xmlNodePtr node );
++            virtual ~ObjectAction( ){ }
++
++            Type getType( ) { return m_type; }
++            bool isEnabled( ) { return m_enabled; }
++            bool isValid( ) { return m_valid; }
++
++            /** Parses the permission name into one of the enum values or throws
++                an exception for invalid input strings.
++              */
++            static Type parseType( std::string type );
++
++    };
++
++    /** Class providing access to the allowed actions on an object.
++      */
++    class AllowableActions
++    {
++        protected:
++            std::map< ObjectAction::Type, bool > m_states;
++
++        public:
++            /** Default constructor for testing purpose
++              */
++            AllowableActions( );
++            AllowableActions( xmlNodePtr node );
++            AllowableActions( const AllowableActions& copy );
++            virtual ~AllowableActions( );
++
++            AllowableActions& operator=( const AllowableActions& copy );
++
++            /** Returns the permissions for the corresponding actions.
++              */
++            bool isAllowed( ObjectAction::Type action );
++
++            /** Returns true if the action was defined, false if the default
++                value is used.
++              */
++            bool isDefined( ObjectAction::Type action );
++
++            std::string toString( );
++    };
++    typedef boost::shared_ptr< AllowableActions > AllowableActionsPtr;
++}
++
++#endif
+diff --git a/include/libcmis/document.hxx b/include/libcmis/document.hxx
+new file mode 100644
+index 000000000000..ce123b081efb
+--- /dev/null
++++ b/include/libcmis/document.hxx
+@@ -0,0 +1,146 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _DOCUMENT_HXX_
++#define _DOCUMENT_HXX_
++
++#include <iostream>
++#include <string>
++#include <vector>
++
++#include <boost/shared_ptr.hpp>
++
++#include "exception.hxx"
++#include "object.hxx"
++
++namespace libcmis
++{
++    class Folder;
++    class Session;
++
++    /** Interface for a CMIS Document object.
++      */
++    class Document : public virtual Object
++    {
++        public:
++            Document( Session* session ) : Object( session ) { }
++            virtual ~Document( ) { }
++
++            /** Get the folder parents for the document.
++
++                Note that an unfiled document will have no parent folder.
++
++                @return the parents folder if any.
++              */
++            virtual std::vector< boost::shared_ptr< Folder > > getParents( ) = 0;
++            
++            /** Get the content stream without using a temporary file.
++
++                <p>The stream may not contain anything if there is
++                no content or if something wrong happened during the
++                download.</p>
++
++                @param streamId of the rendition
++                @return
++                    An input stream to read the data from.
++
++                @throws Exception
++                    if anything wrong happened during the file transfer.
++                    In such a case, the content of the stream can't be
++                    guaranteed.
++              */
++            virtual boost::shared_ptr< std::istream > getContentStream( std::string streamId = std::string( ) ) 
++                        = 0;
++
++            /** Set or replace the content stream of the document.
++
++                @param is the output stream containing the new data for the content stream
++                @param contentType the mime-type of the new content stream
++                @param filename the filename to set for the file
++                @param overwrite if set to false, don't overwrite the content stream if one is already set.
++
++                @throw Exception if anything happens during the upload like a wrong authentication, 
++                                no rights to set the stream, server doesn't have the ContentStreamUpdatability
++                                capability.
++              */
++            virtual void setContentStream( boost::shared_ptr< std::ostream > os, std::string contentType,
++                                           std::string filename, bool overwrite = true ) = 0;
++
++            /** Get the content mime type.
++              */
++            virtual std::string getContentType( );
++            
++            /** Get the content stream filename.
++              */
++            virtual std::string getContentFilename( );
++
++            /** Get the content length in bytes.
++              */
++            virtual long getContentLength( );
++
++            /** Checks out the document and returns the object corresponding to the 
++                created Private Working Copy.
++
++                \return the Private Working Copy document
++              */
++            virtual boost::shared_ptr< Document > checkOut( ) = 0;
++
++            /** Cancels the checkout if the document is a private working copy, or
++                throws an exception.
++              */
++            virtual void cancelCheckout( ) = 0;
++
++            /** Check in the private working copy and create a new version or throw
++                an exception.
++
++                The current object will be updated to reflect the changes performed
++                on the server side.
++
++                \param isMajor defines it the version to create is a major or minor one
++                \param comment contains the checkin comment
++                \param properties the properties to set the new version
++                \param stream the content stream to set for the new version
++                \param contentType the mime type of the stream to set
++
++                \return the document with the new version
++              */
++            virtual boost::shared_ptr< Document > checkIn( bool isMajor, std::string comment,
++                                  const std::map< std::string, PropertyPtr >& properties,
++                                  boost::shared_ptr< std::ostream > stream,
++                                  std::string contentType, std::string fileName ) = 0;
++
++            virtual std::vector< boost::shared_ptr< Document > > getAllVersions( ) = 0;
++
++            // virtual methods form Object
++            virtual std::vector< std::string > getPaths( );
++
++            virtual std::string toString( );
++    };
++    typedef ::boost::shared_ptr< Document > DocumentPtr;
++}
++
++#endif
+diff --git a/include/libcmis/exception.hxx b/include/libcmis/exception.hxx
+new file mode 100644
+index 000000000000..16f3573da2b1
+--- /dev/null
++++ b/include/libcmis/exception.hxx
+@@ -0,0 +1,60 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _EXCEPTION_HXX_
++#define _EXCEPTION_HXX_
++
++#include <exception>
++#include <string>
++
++namespace libcmis
++{
++    class Exception : public std::exception
++    {
++        private:
++            std::string m_message;
++            std::string m_type;
++
++        public:
++            Exception( std::string message, std::string type = "runtime" ) :
++                exception( ),
++                m_message( message ),
++                m_type( type )
++            {
++            }
++
++            ~Exception( ) throw () { }
++            virtual const char* what() const throw()
++            {
++                return m_message.c_str( );
++            }
++
++            std::string getType( ) const { return m_type; }
++    };
++}
++
++#endif
+diff --git a/include/libcmis/folder.hxx b/include/libcmis/folder.hxx
+new file mode 100644
+index 000000000000..9f17e3883898
+--- /dev/null
++++ b/include/libcmis/folder.hxx
+@@ -0,0 +1,83 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _FOLDER_HXX_
++#define _FOLDER_HXX_
++
++#include <map>
++#include <string>
++#include <vector>
++
++#include "exception.hxx"
++#include "object.hxx"
++
++namespace libcmis
++{
++    class Document;
++    class Session;
++    
++    struct UnfileObjects {
++        enum Type
++        {
++            Unfile,
++            DeleteSingleFiled,
++            Delete
++        };
++    };
++
++    /** Class representing a CMIS folder.
++      */
++    class Folder : public virtual Object
++    {
++        public:
++            Folder( Session* session ) : Object( session ) { }
++            virtual ~Folder() { }
++
++            virtual std::vector< std::string > getPaths( );
++
++            virtual ::boost::shared_ptr< Folder > getFolderParent( );
++            virtual std::vector< ObjectPtr > getChildren( ) = 0;
++            virtual std::string getParentId( );
++            virtual std::string getPath( );
++
++            virtual bool isRootFolder( );
++
++            virtual ::boost::shared_ptr< Folder > createFolder( const std::map< std::string, PropertyPtr >& properties )
++                = 0;
++            virtual ::boost::shared_ptr< Document > createDocument( const std::map< std::string, PropertyPtr >& properties,
++                                    boost::shared_ptr< std::ostream > os, std::string contentType, std::string fileName ) = 0;
++
++            virtual std::vector< std::string > removeTree( bool allVersion = true, UnfileObjects::Type unfile = UnfileObjects::Delete,
++                                    bool continueOnError = false ) = 0;
++        
++            virtual std::string toString( );
++    };
++    typedef ::boost::shared_ptr< Folder > FolderPtr;
++
++}
++
++#endif
+diff --git a/include/libcmis/libcmis.hxx b/include/libcmis/libcmis.hxx
+new file mode 100644
+index 000000000000..540e5af127f2
+--- /dev/null
++++ b/include/libcmis/libcmis.hxx
+@@ -0,0 +1,47 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _LIBCMIS_HXX_
++#define _LIBCMIS_HXX_
++
++#include "allowable-actions.hxx"
++#include "document.hxx"
++#include "exception.hxx"
++#include "folder.hxx"
++#include "oauth2-data.hxx"
++#include "object-type.hxx"
++#include "object.hxx"
++#include "property-type.hxx"
++#include "property.hxx"
++#include "rendition.hxx"
++#include "repository.hxx"
++#include "session-factory.hxx"
++#include "session.hxx"
++#include "xml-utils.hxx"
++#include "xmlserializable.hxx"
++
++#endif
+diff --git a/include/libcmis/oauth2-data.hxx b/include/libcmis/oauth2-data.hxx
+new file mode 100644
+index 000000000000..000f9394b034
+--- /dev/null
++++ b/include/libcmis/oauth2-data.hxx
+@@ -0,0 +1,76 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _LIBCMIS_OAUTH2_DATA_HXX_
++#define _LIBCMIS_OAUTH2_DATA_HXX_
++
++#include <string>
++#include <boost/shared_ptr.hpp>
++
++namespace libcmis
++{
++    /** Class storing the data needed for OAuth2 authentication.
++      */
++    class OAuth2Data
++    {
++        private:
++
++            std::string m_authUrl;
++            std::string m_tokenUrl;
++            std::string m_clientId;
++            std::string m_clientSecret;
++            std::string m_scope;
++            std::string m_redirectUri;
++        public:
++
++            OAuth2Data( );
++            OAuth2Data( const std::string& authUrl, 
++                        const std::string& tokenUrl,
++                        const std::string& scope, 
++                        const std::string& redirectUri,
++                        const std::string& clientId, 
++                        const std::string& clientSecret );
++
++            OAuth2Data( const OAuth2Data& copy );
++            ~OAuth2Data( );
++
++            OAuth2Data& operator=( const OAuth2Data& copy );
++
++            bool isComplete();
++
++            const std::string& getAuthUrl() { return m_authUrl; }
++            const std::string& getTokenUrl() { return m_tokenUrl; }
++            const std::string& getClientId() { return m_clientId; }
++            const std::string& getClientSecret() { return m_clientSecret; }
++            const std::string& getScope() { return m_scope; }
++            const std::string& getRedirectUri() { return m_redirectUri; }
++    };
++    typedef ::boost::shared_ptr< OAuth2Data > OAuth2DataPtr;
++}
++
++#endif //_LIBCMIS_OAUTH2_DATA_HXX_
++
+diff --git a/include/libcmis/object-type.hxx b/include/libcmis/object-type.hxx
+new file mode 100644
+index 000000000000..a8576ec80f0b
+--- /dev/null
++++ b/include/libcmis/object-type.hxx
+@@ -0,0 +1,143 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _OBJECT_TYPE_HXX_
++#define _OBJECT_TYPE_HXX_
++
++#include <boost/shared_ptr.hpp>
++#include <libxml/tree.h>
++
++#include <string>
++#include <vector>
++
++#include "exception.hxx"
++#include "property-type.hxx"
++
++namespace libcmis
++{
++    /** Class representing a CMIS object type definition.
++      */
++    class ObjectType
++    {
++        public:
++
++            enum ContentStreamAllowed
++            {
++                NotAllowed,
++                Allowed,
++                Required
++            };
++
++        protected:
++            time_t m_refreshTimestamp;
++
++            std::string m_id;
++            std::string m_localName;
++            std::string m_localNamespace;
++            std::string m_displayName;
++            std::string m_queryName;
++            std::string m_description;
++
++            std::string m_parentTypeId;
++            std::string m_baseTypeId;
++
++            bool m_creatable;
++            bool m_fileable;
++            bool m_queryable;
++            bool m_fulltextIndexed;
++            bool m_includedInSupertypeQuery;
++            bool m_controllablePolicy;
++            bool m_controllableAcl;
++            bool m_versionable;
++            libcmis::ObjectType::ContentStreamAllowed m_contentStreamAllowed;
++
++            std::map< std::string, libcmis::PropertyTypePtr > m_propertiesTypes;
++
++            ObjectType( );
++            void initializeFromNode( xmlNodePtr node );
++
++        public:
++
++            ObjectType( xmlNodePtr node );
++            ObjectType( const ObjectType& copy );
++            virtual ~ObjectType() { }
++
++            ObjectType& operator=( const ObjectType& copy );
++
++            /** Reload the data from the server.
++
++                \attention
++                    This method needs to be implemented in subclasses or it will
++                    do nothing
++             */
++            virtual void refresh( );
++            virtual time_t getRefreshTimestamp( ) const;
++
++            std::string getId( ) const;
++            std::string getLocalName( ) const;
++            std::string getLocalNamespace( ) const;
++            std::string getDisplayName( ) const;
++            std::string getQueryName( ) const;
++            std::string getDescription( ) const;
++
++            virtual boost::shared_ptr< ObjectType >  getParentType( );
++            virtual boost::shared_ptr< ObjectType >  getBaseType( );
++            virtual std::vector< boost::shared_ptr< ObjectType > > getChildren( );
++
++            /** Get the parent type id without extracting the complete parent type from
++                the repository. This is mainly provided for performance reasons.
++
++                \since libcmis 0.4
++              */
++            std::string getParentTypeId( ) const;
++
++            /** Get the base type id without extracting the complete base type from
++                the repository. This is mainly provided for performance reasons.
++
++                \since libcmis 0.4
++              */
++            std::string getBaseTypeId( ) const;
++
++            bool isCreatable( ) const;
++            bool isFileable( ) const;
++            bool isQueryable( ) const;
++            bool isFulltextIndexed( ) const;
++            bool isIncludedInSupertypeQuery( ) const;
++            bool isControllablePolicy( ) const;
++            bool isControllableACL( ) const;
++            bool isVersionable( ) const;
++            ContentStreamAllowed getContentStreamAllowed( ) const;
++
++            std::map< std::string, PropertyTypePtr >& getPropertiesTypes( );
++
++            virtual std::string toString( );
++    };
++
++    typedef ::boost::shared_ptr< ObjectType > ObjectTypePtr;
++}
++
++#endif
+diff --git a/include/libcmis/object.hxx b/include/libcmis/object.hxx
+new file mode 100644
+index 000000000000..fa8d465e7c3b
+--- /dev/null
++++ b/include/libcmis/object.hxx
+@@ -0,0 +1,217 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _OBJECT_HXX_
++#define _OBJECT_HXX_
++
++#include <ctime>
++#include <map>
++#include <string>
++#include <vector>
++
++#ifndef __cplusplus
++#include <stdbool.h>
++#endif
++
++#include <boost/date_time.hpp>
++#include <boost/shared_ptr.hpp>
++#include <libxml/tree.h>
++
++#include "allowable-actions.hxx"
++#include "exception.hxx"
++#include "object-type.hxx"
++#include "property.hxx"
++#include "xmlserializable.hxx"
++#include "rendition.hxx"
++
++namespace libcmis
++{
++    class Folder;
++    class Session;
++
++    /** Class representing any CMIS object.
++      */
++    class Object : public XmlSerializable
++    {
++        protected:
++            Session* m_session;
++
++            ObjectTypePtr m_typeDescription;
++            time_t m_refreshTimestamp;
++
++            /** Type id used as cache before we get it as a property
++              */
++            std::string m_typeId;
++
++            std::map< std::string, PropertyPtr > m_properties;
++            boost::shared_ptr< AllowableActions > m_allowableActions;
++            std::vector< RenditionPtr > m_renditions;
++            void initializeFromNode( xmlNodePtr node );
++
++        public:
++
++            Object( Session* session );
++            Object( Session* session, xmlNodePtr node );
++            Object( const Object& copy );
++            virtual ~Object( ) { }
++
++            Object& operator=( const Object& copy );
++
++            virtual std::string getId( );
++            virtual std::string getName( );
++            virtual std::string getStringProperty( const std::string& propertyName );
++
++            /** Computes the paths for the objects.
++
++                Note that folders will have only path, documents may have
++                several ones and there may be cases where there is no path
++                at all (unfilled objects);
++              */
++            virtual std::vector< std::string > getPaths( );
++
++            virtual std::string getBaseType( );
++            virtual std::string getType( );
++
++            virtual std::string getCreatedBy( );
++            virtual boost::posix_time::ptime getCreationDate( );
++            virtual std::string getLastModifiedBy( );
++            virtual boost::posix_time::ptime getLastModificationDate( );
++
++            virtual std::string getChangeToken( );
++            virtual bool isImmutable( );
++
++            virtual std::vector< std::string > getSecondaryTypes();
++
++            /** Convenience function adding a secondary type to the object.
++
++                Behind the scene this function is basically computing the
++                properties and sets them for you to avoid reading the CMIS
++                1.1 specification, section 2.1.9.
++
++                \param id
++                    the identifier of the secondary type to add
++                \param properties
++                    the properties coming with the secondary type
++
++                \return
++                    the updated object. Note that it may represent the same
++                    object on the server but it still is a different object
++                    instance (see updateProperties method).
++
++                \throw Exception
++                    if anything wrong happens. Note that the server is likely
++                    to throw a constraint exception if it doesn't allow the
++                    operation.
++              */
++            virtual boost::shared_ptr< Object > addSecondaryType(
++                                                        std::string id,
++                                                        PropertyPtrMap properties );
++
++            /** Convenience function removing a secondary type from the object.
++
++                Behind the scene this function is basically computing the
++                correct property and sets it for you to avoid reading the
++                CMIS 1.1 specification, section 2.1.9.
++
++                The server should remove the related properties, there is
++                normally no need to worry about them.
++
++                \param id
++                    the identifier of the secondary type to remove
++
++                \return
++                    the updated object. Note that it may represent the same
++                    object on the server but it still is a different object
++                    instance (see updateProperties method).
++
++                \throw Exception
++                    if anything wrong happens. Note that the server is likely
++                    to throw a constraint exception if it doesn't allow the
++                    operation.
++              */
++            virtual boost::shared_ptr< Object > removeSecondaryType( std::string id );
++
++            /** Gives access to the properties of the object.
++
++                \attention
++                    API users should consider this method as read-only as the
++                    changed properties won't be updated to the server. Updating
++                    the returned map may lead to changes loss when calling
++                    updateProperties.
++
++                \sa updateProperties to change properties on the server
++              */
++            virtual libcmis::PropertyPtrMap& getProperties( );
++
++
++            /** Get the renditions of the object.
++
++                \param filter is defined by the CMIS spec section 2.2.1.2.4.1.
++                              By default, this value is just ignored, but some bindings and servers
++                              may use it.
++
++                \attention
++                    The streamId of the rendition is used in getContentStream( )
++              */
++            virtual std::vector< RenditionPtr> getRenditions( std::string filter = std::string( ) );
++            virtual AllowableActionsPtr getAllowableActions( ) { return m_allowableActions; }
++
++            /** Update the object properties and return the updated object.
++
++                \attention
++                    even if the returned object may have the same Id than 'this'
++                    and thus representing the same object on the server, those
++                    are still two different instances to ease memory handling.
++              */
++            virtual boost::shared_ptr< Object > updateProperties(
++                        const PropertyPtrMap& properties ) = 0;
++
++            virtual ObjectTypePtr getTypeDescription( );
++
++            /** Reload the data from the server.
++              */
++            virtual void refresh( ) = 0;
++            virtual time_t getRefreshTimestamp( ) { return m_refreshTimestamp; }
++
++            virtual void remove( bool allVersions = true ) = 0;
++
++            virtual void move( boost::shared_ptr< Folder > source, boost::shared_ptr< Folder > destination ) = 0;
++
++
++            virtual std::string getThumbnailUrl( );
++
++            /** Dump the object as a string for debugging or display purpose.
++              */
++            virtual std::string toString( );
++
++            void toXml( xmlTextWriterPtr writer );
++    };
++
++    typedef ::boost::shared_ptr< Object > ObjectPtr;
++}
++
++#endif
+diff --git a/include/libcmis/property-type.hxx b/include/libcmis/property-type.hxx
+new file mode 100644
+index 000000000000..56be22347c86
+--- /dev/null
++++ b/include/libcmis/property-type.hxx
+@@ -0,0 +1,125 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _PROPERTY_TYPE_HXX_
++#define _PROPERTY_TYPE_HXX_
++
++#include <boost/date_time.hpp>
++#include <libxml/tree.h>
++
++#include <string>
++
++namespace libcmis
++{
++    class ObjectType;
++    typedef boost::shared_ptr< ObjectType > ObjectTypePtr;
++
++    class PropertyType
++    {
++        public:
++
++            enum Type
++            {
++                String,
++                Integer,
++                Decimal,
++                Bool,
++                DateTime
++            };
++
++        private:
++
++            std::string m_id;
++            std::string m_localName;
++            std::string m_localNamespace;
++            std::string m_displayName;
++            std::string m_queryName;
++            Type m_type;
++            std::string m_xmlType;
++            bool m_multiValued;
++            bool m_updatable;
++            bool m_inherited;
++            bool m_required;
++            bool m_queryable;
++            bool m_orderable;
++            bool m_openChoice;
++            bool m_temporary;
++
++        public:
++
++            /// Default constructor, mostly present for testing.
++            PropertyType( );
++            PropertyType( xmlNodePtr node );
++            PropertyType( const PropertyType& copy );
++            /// constructor for temporary type definitions
++            PropertyType( std::string type,
++                          std::string id,
++                          std::string localName,
++                          std::string displayName,
++                          std::string queryName );
++            virtual ~PropertyType( ) { };
++
++            PropertyType& operator=( const PropertyType& copy );
++
++            std::string getId( ) { return m_id; }
++            std::string getLocalName( ) { return m_localName; }
++            std::string getLocalNamespace( ) { return m_localNamespace; }
++            std::string getDisplayName( ) { return m_displayName; }
++            std::string getQueryName( ) { return m_queryName; }
++            Type getType( ) { return m_type; }
++            std::string getXmlType( ) { return m_xmlType; }
++            bool isMultiValued( ) { return m_multiValued; }
++            bool isUpdatable( ) { return m_updatable; }
++            bool isInherited( ) { return m_inherited; }
++            bool isRequired( ) { return m_required; }
++            bool isQueryable( ) { return m_queryable; }
++            bool isOrderable( ) { return m_orderable; }
++            bool isOpenChoice( ) { return m_openChoice; }
++
++            void setId( std::string id ) { m_id = id; }
++            void setLocalName( std::string localName ) { m_localName = localName; }
++            void setLocalNamespace( std::string localNamespace ) { m_localNamespace = localNamespace; }
++            void setDisplayName( std::string displayName ) { m_displayName = displayName; }
++            void setQueryName( std::string queryName ) { m_queryName = queryName; }
++            void setType( Type type ) { m_type = type; }
++            void setMultiValued( bool multivalued ) { m_multiValued = multivalued; }
++            void setUpdatable( bool updatable ) { m_updatable = updatable; }
++            void setInherited( bool inherited ) { m_inherited = inherited; }
++            void setRequired( bool required ) { m_required = required; }
++            void setQueryable( bool queryable ) { m_queryable = queryable; }
++            void setOrderable( bool orderable ) { m_orderable = orderable; }
++            void setOpenChoice( bool openChoice ) { m_openChoice = openChoice; }
++
++            void setTypeFromXml( std::string typeStr );
++            void setTypeFromJsonType( std::string jsonType );
++
++            void update( std::vector< ObjectTypePtr > typesDefs );
++    };
++    typedef ::boost::shared_ptr< PropertyType > PropertyTypePtr;
++}
++
++#endif
+diff --git a/include/libcmis/property.hxx b/include/libcmis/property.hxx
+new file mode 100644
+index 000000000000..aa6560590c11
+--- /dev/null
++++ b/include/libcmis/property.hxx
+@@ -0,0 +1,88 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _PROPERTY_HXX_
++#define _PROPERTY_HXX_
++
++#include <libxml/tree.h>
++#include <libxml/xmlwriter.h>
++
++#include <boost/date_time.hpp>
++#include <boost/shared_ptr.hpp>
++
++#include <string>
++#include <vector>
++
++#include "property-type.hxx"
++#include "xmlserializable.hxx"
++
++namespace libcmis
++{
++    class ObjectType;
++
++    class Property : public XmlSerializable
++    {
++        private:
++            PropertyTypePtr m_propertyType;
++            std::vector< std::string > m_strValues;
++            std::vector< bool > m_boolValues;
++            std::vector< long > m_longValues;
++            std::vector< double > m_doubleValues;
++            std::vector< boost::posix_time::ptime > m_dateTimeValues;
++
++        protected:
++            Property( );
++
++        public:
++            /** Property constructor allowing to use different values for the id and names.
++              */
++            Property( PropertyTypePtr propertyType, std::vector< std::string > strValues );
++
++            ~Property( ){ }
++
++            PropertyTypePtr getPropertyType( ) { return m_propertyType; }
++
++            std::vector< boost::posix_time::ptime > getDateTimes( ) { return m_dateTimeValues; }
++            std::vector< bool > getBools( ) { return m_boolValues; }
++            std::vector< std::string > getStrings( ) { return m_strValues; }
++            std::vector< long > getLongs( ) { return m_longValues; }
++            std::vector< double > getDoubles( ) { return m_doubleValues; }
++
++            void setPropertyType( PropertyTypePtr propertyType);
++            void setValues( std::vector< std::string > strValues );
++
++            void toXml( xmlTextWriterPtr writer );
++
++            std::string toString( );
++    };
++    typedef ::boost::shared_ptr< Property > PropertyPtr;
++    typedef std::map< std::string, libcmis::PropertyPtr > PropertyPtrMap;
++
++    PropertyPtr parseProperty( xmlNodePtr node, boost::shared_ptr< ObjectType > objectType );
++}
++
++#endif
+diff --git a/include/libcmis/rendition.hxx b/include/libcmis/rendition.hxx
+new file mode 100644
+index 000000000000..2e386515e77d
+--- /dev/null
++++ b/include/libcmis/rendition.hxx
+@@ -0,0 +1,88 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2013 Cao Cuong Ngo <cao.cuong.ngo@gmail.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++
++#ifndef _RENDITION_HXX_
++#define _RENDITION_HXX_
++
++#include <string>
++
++#include <boost/shared_ptr.hpp>
++#include <libxml/tree.h>
++
++namespace libcmis
++{  
++    class Rendition
++    {
++        private:
++            Rendition( );
++    
++            std::string m_streamId;
++            std::string m_mimeType;
++            std::string m_kind;
++            std::string m_href;
++            std::string m_title;
++            long m_length;
++            long m_width;
++            long m_height;
++            std::string m_renditionDocumentId;
++
++        public:
++            Rendition( std::string streamId, std::string mimeType, 
++                       std::string kind, std::string href,
++                       std::string title = std::string( ),
++                       long length = -1, long width = -1, long height = -1,
++                       std::string renditionDocumentId = std::string( ) );
++
++            /** Parse an XML node of type cmisRenditionType
++              */
++            Rendition( xmlNodePtr node );
++            ~Rendition( );
++            
++            bool isThumbnail( );
++
++            const std::string& getStreamId( ) const;
++            const std::string& getMimeType( ) const;
++            const std::string& getKind( ) const;
++            const std::string& getUrl( ) const;
++            const std::string& getTitle( ) const;
++
++            /** Provides the stream length in bytes or a negative value if missing.
++              */
++            long getLength( ) const;
++            long getWidth( ) const;
++            long getHeight( ) const;
++            const std::string& getRenditionDocumentId( );
++
++            std::string toString( );
++    };
++
++    typedef ::boost::shared_ptr< Rendition > RenditionPtr;
++}
++
++#endif
++
+diff --git a/include/libcmis/repository.hxx b/include/libcmis/repository.hxx
+new file mode 100644
+index 000000000000..a4435d89ae75
+--- /dev/null
++++ b/include/libcmis/repository.hxx
+@@ -0,0 +1,117 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 Cédric Bosdonnat <cbosdo@users.sourceforge.net>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _REPOSITORY_HXX_
++#define _REPOSITORY_HXX_
++
++#include <map>
++#include <string>
++
++#include <boost/shared_ptr.hpp>
++#include <libxml/tree.h>
++
++namespace libcmis
++{
++    /** Class representing a repository and its infos.
++
++        \sa 2.2.2.2 section of the CMIS specifications
++      */
++    class Repository
++    {
++        public:
++
++            enum Capability
++            {
++                ACL,
++                AllVersionsSearchable,
++                Changes,
++                ContentStreamUpdatability,
++                GetDescendants,
++                GetFolderTree,
++                OrderBy,
++                Multifiling,
++                PWCSearchable,
++                PWCUpdatable,
++                Query,
++                Renditions,
++                Unfiling,
++                VersionSpecificFiling,
++                Join
++            };
++
++        protected:
++            std::string m_id;
++            std::string m_name;
++            std::string m_description;
++            std::string m_vendorName;
++            std::string m_productName;
++            std::string m_productVersion;
++            std::string m_rootId;
++            std::string m_cmisVersionSupported;
++            boost::shared_ptr< std::string > m_thinClientUri;
++            boost::shared_ptr< std::string > m_principalAnonymous;
++            boost::shared_ptr< std::string > m_principalAnyone;
++
++            std::map< Capability, std::string > m_capabilities ;
++
++            Repository( );
++            void initializeFromNode( xmlNodePtr node );
++
++        public:
++            Repository( xmlNodePtr node );
++            virtual ~Repository( ) { };
++
++            std::string getId( ) const;
++            std::string getName( ) const;
++            std::string getDescription( ) const;
++            std::string getVendorName( ) const;
++            std::string getProductName( ) const;
++            std::string getProductVersion( ) const;
++            std::string getRootId( ) const;
++            std::string getCmisVersionSupported( ) const;
++            boost::shared_ptr< std::string > getThinClientUri( ) const;
++            boost::shared_ptr< std::string > getPrincipalAnonymous( ) const;
++            boost::shared_ptr< std::string > getPrincipalAnyone( ) const;
++
++            std::string getCapability( Capability capability ) const;
++
++            /** Wrapper function providing the capability as a boolean value.
++                If the capability value is not a boolean, returns false.
++             */
++            bool getCapabilityAsBool( Capability capability ) const;
++
++            std::string toString( ) const;
++
++        private:
++
++            static std::map< Capability, std::string > parseCapabilities( xmlNodePtr node );
++    };
++    
++    typedef ::boost::shared_ptr< Repository > RepositoryPtr;
++}
++
++#endif
+diff --git a/include/libcmis/session-factory.hxx b/include/libcmis/session-factory.hxx
+new file mode 100644
+index 000000000000..b0b94f835f30
+--- /dev/null
++++ b/include/libcmis/session-factory.hxx
+@@ -0,0 +1,149 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _SESSION_FACTORY_HXX_
++#define _SESSION_FACTORY_HXX_
++
++#include <vector>
++#include <map>
++#include <string>
++
++#include "exception.hxx"
++#include "oauth2-data.hxx"
++#include "repository.hxx"
++#include "session.hxx"
++
++namespace libcmis
++{
++    /** This callback provides the OAuth2 code or NULL.
++
++        The resulting char* will be freed later.
++      */
++    typedef char* ( *OAuth2AuthCodeProvider )( const char* authUrl,
++        const char* username, const char* password );
++
++    class AuthProvider 
++    {
++        public:
++            virtual ~AuthProvider() { };
++
++            /** The function implementing it needs to fill the username and password parameters
++                and return true. Returning false means that the user cancelled the authentication
++                and will fail the query.
++              */
++            virtual bool authenticationQuery( std::string& username, std::string& password ) = 0;
++    };
++    typedef ::boost::shared_ptr< AuthProvider > AuthProviderPtr;
++  
++    /** Handler class used to request user input when an invalid SSL certificate is encountered.
++     */ 
++    class CertValidationHandler
++    {
++        public:
++             virtual ~CertValidationHandler( ){ };
++
++             /** This function is provided a vector of X509 certificates encoded in base64, with
++                 the first certificate being the one to validate, and the others are the issuers
++                 chain.
++
++                 The result will be stored in the session object to avoid asking several times
++                 to validate the same certificate.
++
++                 \result true if the certificate should be ignored, false to fail the request.
++               */
++             virtual bool validateCertificate( std::vector< std::string > certificatesChain ) = 0;
++    };
++    typedef ::boost::shared_ptr< CertValidationHandler > CertValidationHandlerPtr;
++
++    class SessionFactory
++    {
++        private:
++
++            static AuthProviderPtr s_authProvider;
++
++            static std::string s_proxy;
++            static std::string s_noProxy;
++            static std::string s_proxyUser;
++            static std::string s_proxyPass;
++
++            static OAuth2AuthCodeProvider s_oauth2AuthCodeProvider;
++
++            static CertValidationHandlerPtr s_certValidationHandler;
++
++        public:
++
++            static void setAuthenticationProvider( AuthProviderPtr provider ) { s_authProvider = provider; }
++            static AuthProviderPtr getAuthenticationProvider( ) { return s_authProvider; }
++            
++            static void setOAuth2AuthCodeProvider( OAuth2AuthCodeProvider provider ) { s_oauth2AuthCodeProvider = provider; }
++            static OAuth2AuthCodeProvider getOAuth2AuthCodeProvider( ) { return s_oauth2AuthCodeProvider; }
++
++            /** Set the handler to ask the user what to do with invalid SSL certificates. If not set,
++                every invalid certificate will raise an exception.
++              */
++            static void setCertificateValidationHandler( CertValidationHandlerPtr handler ) { s_certValidationHandler = handler; }
++            static CertValidationHandlerPtr getCertificateValidationHandler( ) { return s_certValidationHandler; }
++
++            static void setProxySettings( std::string proxy,
++                    std::string noProxy,
++                    std::string proxyUser,
++                    std::string proxyPass );
++
++            static const std::string& getProxy() { return s_proxy; }
++            static const std::string& getNoProxy() { return s_noProxy; }
++            static const std::string& getProxyUser() { return s_proxyUser; }
++            static const std::string& getProxyPass() { return s_proxyPass; }
++
++            /** Create a session from the given parameters. The binding type is automatically
++                detected based on the provided URL.
++
++                The resulting pointer should be deleted by the caller.
++              */
++            static Session* createSession( std::string bindingUrl,
++                    std::string username = std::string( ),
++                    std::string password = std::string( ),
++                    std::string repositoryId = std::string( ),
++                    bool noSslCheck = false,
++                    OAuth2DataPtr oauth2 = OAuth2DataPtr(), bool verbose = false );
++
++            /**
++                Gets the informations of the repositories on the server.
++
++                \deprecated
++                    Since libcmis 0.4.0, this helper function simply creates a session
++                    using the createSession function with no repository and then calls
++                    getRepositories on the resulting session.
++                    Kept only for backward API compatibility.
++              */
++            static std::vector< RepositoryPtr > getRepositories( std::string bindingUrl,
++                    std::string username = std::string( ),
++                    std::string password = std::string( ),
++                    bool verbose = false );
++    };
++}
++
++#endif
+diff --git a/include/libcmis/session.hxx b/include/libcmis/session.hxx
+new file mode 100644
+index 000000000000..d28361a15005
+--- /dev/null
++++ b/include/libcmis/session.hxx
+@@ -0,0 +1,100 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _SESSION_HXX_
++#define _SESSION_HXX_
++
++#include <vector>
++#include <string>
++#include <boost/shared_ptr.hpp>
++
++#include "object-type.hxx"
++#include "object.hxx"
++#include "folder.hxx"
++#include "repository.hxx"
++
++namespace libcmis
++{
++    class Session
++    {
++        public:
++
++            virtual ~Session() { };
++
++            /** Get the current repository.
++              */
++            virtual RepositoryPtr getRepository( ) = 0;
++
++            virtual std::vector< RepositoryPtr > getRepositories( ) = 0;
++
++            /** Change the current repository.
++
++                \return
++                    false if no repository with the provided id can be found on the server,
++                    true otherwise
++              */
++            virtual bool setRepository( std::string repositoryId ) = 0;
++
++            /** Get the Root folder of the repository
++              */
++            virtual FolderPtr getRootFolder() = 0;
++            
++            /** Get a CMIS object from its ID.
++              */
++            virtual ObjectPtr getObject( std::string id ) = 0;
++
++            /** Get a CMIS object from one of its path.
++              */
++            virtual ObjectPtr getObjectByPath( std::string path ) = 0;
++
++            /** Get a CMIS folder from its ID.
++              */
++            virtual libcmis::FolderPtr getFolder( std::string id ) = 0;
++
++            /** Get a CMIS object type from its ID.
++              */
++            virtual ObjectTypePtr getType( std::string id ) = 0;
++
++            /** Get all the CMIS base object types known by the server.
++              */
++            virtual std::vector< ObjectTypePtr > getBaseTypes( ) = 0;
++
++            /** Enable or disable the SSL certificate verification.
++
++                By default, SSL certificates are verified and errors are thrown in case of
++                one is invalid. The user may decide to ignore the checks for this CMIS session
++                to workaround self-signed certificates or other similar problems.
++
++                As each session only handles the connection to one CMIS server, it should
++                concern only one SSL certificate and should provide the same feature as the
++                certificate exception feature available on common web browser.
++              */
++            virtual void setNoSSLCertificateCheck( bool noCheck ) = 0;
++    };
++}
++
++#endif
+diff --git a/include/libcmis/xml-utils.hxx b/include/libcmis/xml-utils.hxx
+new file mode 100644
+index 000000000000..afe5985dad23
+--- /dev/null
++++ b/include/libcmis/xml-utils.hxx
+@@ -0,0 +1,167 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _XML_UTILS_HXX_
++#define _XML_UTILS_HXX_
++
++#include <map>
++#include <ostream>
++#include <sstream>
++#include <string>
++
++#include <boost/date_time.hpp>
++#include <libxml/tree.h>
++#include <libxml/xpathInternals.h>
++#include <libxml/xmlwriter.h>
++
++#include "exception.hxx"
++
++#define NS_CMIS_PREFIX      "cmis"
++#define NS_CMISRA_PREFIX    "cmisra"
++#define NS_SOAP_ENV_PREFIX  "soap-env"
++#define NS_CMIS_URL         "http://docs.oasis-open.org/ns/cmis/core/200908/"
++#define NS_CMISRA_URL       "http://docs.oasis-open.org/ns/cmis/restatom/200908/"
++#define NS_CMISM_URL        "http://docs.oasis-open.org/ns/cmis/messaging/200908/"
++#define NS_CMISW_URL        "http://docs.oasis-open.org/ns/cmis/ws/200908/"
++#define NS_APP_URL          "http://www.w3.org/2007/app"
++#define NS_ATOM_URL         "http://www.w3.org/2005/Atom"
++#define NS_SOAP_URL         "http://schemas.xmlsoap.org/wsdl/soap/"
++#define NS_SOAP_ENV_URL     "http://schemas.xmlsoap.org/soap/envelope/"
++
++#define LIBCURL_VERSION_VALUE ( \
++        ( LIBCURL_VERSION_MAJOR << 16 ) | ( LIBCURL_VERSION_MINOR << 8 ) | ( LIBCURL_VERSION_PATCH ) \
++)
++
++namespace libcmis
++{
++    /** Class used to decode a stream.
++
++        An instance of this class can hold remaining un-decoded data to use
++        for a future decode call.
++      */
++    class EncodedData
++    {
++        private:
++            xmlTextWriterPtr m_writer;
++            FILE* m_stream;
++            std::ostream* m_outStream;
++
++            std::string m_encoding;
++            bool m_decode;
++            unsigned long m_pendingValue;
++            int m_pendingRank;
++            size_t m_missingBytes;
++
++        public:
++            EncodedData( FILE* stream );
++            EncodedData( std::ostream* stream );
++            EncodedData( const EncodedData& rCopy );
++            EncodedData( xmlTextWriterPtr writer );
++
++            EncodedData& operator=( const EncodedData& rCopy );
++
++            void setEncoding( std::string encoding ) { m_encoding = encoding; }
++            void decode( void* buf, size_t size, size_t nmemb );
++            void encode( void* buf, size_t size, size_t nmemb );
++            void finish( );
++
++        private:
++            void write( void* buf, size_t size, size_t nmemb );
++            void decodeBase64( const char* buf, size_t len );
++            void encodeBase64( const char* buf, size_t len );
++    };
++
++    class HttpResponse
++    {
++        private:
++            std::map< std::string, std::string > m_headers;
++            boost::shared_ptr< std::stringstream > m_stream;
++            boost::shared_ptr< EncodedData > m_data;
++
++        public:
++            HttpResponse( );
++            ~HttpResponse( ) { };
++
++            std::map< std::string, std::string >& getHeaders( ) { return m_headers; }
++            boost::shared_ptr< EncodedData > getData( ) { return m_data; }
++            boost::shared_ptr< std::stringstream > getStream( ) { return m_stream; }
++    };
++    typedef boost::shared_ptr< HttpResponse > HttpResponsePtr;
++
++    void registerNamespaces( xmlXPathContextPtr xpathCtx );
++
++    /** Register the CMIS and WSDL / SOAP namespaces
++      */
++    void registerCmisWSNamespaces( xmlXPathContextPtr xpathCtx );
++
++    /** Register only the WSD / SOAP namespaces.
++      */
++    void registerSoapNamespaces( xmlXPathContextPtr xpathCtx );
++
++    std::string getXPathValue( xmlXPathContextPtr xpathCtx, std::string req );
++
++    xmlDocPtr wrapInDoc( xmlNodePtr entryNode );
++
++    /** Utility extracting an attribute value from an Xml Node,
++        based on the attribute name. If the defaultValue is NULL and
++        the attribute can't be found then throw an exception.
++      */
++    std::string getXmlNodeAttributeValue( xmlNodePtr node,
++                                          const char* attributeName,
++                                          const char* defaultValue = NULL );
++
++    /** Parse a xsd:dateTime string and return the corresponding UTC posix time.
++     */
++    boost::posix_time::ptime parseDateTime( std::string dateTimeStr );
++
++    /// Write a UTC time object to an xsd:dateTime string
++    std::string writeDateTime( boost::posix_time::ptime time );
++
++    bool parseBool( std::string str );
++
++    long parseInteger( std::string str );
++
++    double parseDouble( std::string str );
++
++    /** Trim spaces on the left and right of a string.
++     */
++    std::string trim( const std::string& str );
++
++    std::string base64encode( const std::string& str );
++
++    std::string sha1( const std::string& str );
++
++    std::string tolower( std::string sText );
++
++    int stringstream_write_callback(void * context, const char * s, int len);
++
++    std::string escape( std::string str );
++
++    std::string unescape( std::string str );
++}
++
++#endif
+diff --git a/include/libcmis/xmlserializable.hxx b/include/libcmis/xmlserializable.hxx
+new file mode 100644
+index 000000000000..533308590073
+--- /dev/null
++++ b/include/libcmis/xmlserializable.hxx
+@@ -0,0 +1,46 @@
++/* libcmis
++ * Version: MPL 1.1 / GPLv2+ / LGPLv2+
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License or as specified alternatively below. You may obtain a copy of
++ * the License at http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * Major Contributor(s):
++ * Copyright (C) 2011 SUSE <cbosdonnat@suse.com>
++ *
++ *
++ * All Rights Reserved.
++ *
++ * For minor contributions see the git repository.
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPLv2+"), or
++ * the GNU Lesser General Public License Version 2 or later (the "LGPLv2+"),
++ * in which case the provisions of the GPLv2+ or the LGPLv2+ are applicable
++ * instead of those above.
++ */
++#ifndef _XMLSERIALIZABLE_HXX_
++#define _XMLSERIALIZABLE_HXX_
++
++#include <libxml/xmlwriter.h>
++
++namespace libcmis
++{
++
++    /// Interface for objects dumpable as XML
++    class XmlSerializable
++    {
++        public:
++            virtual ~XmlSerializable( ) { }
++
++            virtual void toXml( xmlTextWriterPtr writer ) = 0;
++    };
++}
++
++#endif
+-- 
+2.26.2
+

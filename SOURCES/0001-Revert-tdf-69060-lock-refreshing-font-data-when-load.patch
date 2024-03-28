@@ -1,0 +1,150 @@
+From d7ed56975a828eac321959e4510ee14560847b1f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Caol=C3=A1n=20McNamara?= <caolanm@redhat.com>
+Date: Wed, 28 Oct 2020 14:25:11 +0000
+Subject: [PATCH] Revert "tdf#69060: lock refreshing font data when loading a
+ document"
+
+This reverts commit 98d71c4e0847797a4ba9229a8e6d832a8a3d5e0f.
+---
+ include/vcl/outdev.hxx      |  3 ---
+ include/vcl/svapp.hxx       | 11 -----------
+ sfx2/source/doc/objstor.cxx |  4 ----
+ vcl/inc/svdata.hxx          |  3 ---
+ vcl/source/app/svapp.cxx    |  5 -----
+ vcl/source/outdev/font.cxx  | 32 +-------------------------------
+ 6 files changed, 1 insertion(+), 57 deletions(-)
+
+diff --git a/include/vcl/outdev.hxx b/include/vcl/outdev.hxx
+index cd3c84d13305..55b466b42464 100644
+--- a/include/vcl/outdev.hxx
++++ b/include/vcl/outdev.hxx
+@@ -1278,9 +1278,6 @@ public:
+     //If bNewFontLists is true then drop and refetch lists of system fonts
+     SAL_DLLPRIVATE static void  ImplUpdateAllFontData( bool bNewFontLists );
+ 
+-    // Lock font updates for all output devices
+-    static void LockFontUpdates(bool bLock);
+-
+ protected:
+     SAL_DLLPRIVATE const LogicalFontInstance* GetFontInstance() const;
+     SAL_DLLPRIVATE long GetEmphasisAscent() const { return mnEmphasisAscent; }
+diff --git a/include/vcl/svapp.hxx b/include/vcl/svapp.hxx
+index 16b8015b923a..4f7b9d6def31 100644
+--- a/include/vcl/svapp.hxx
++++ b/include/vcl/svapp.hxx
+@@ -1326,17 +1326,6 @@ public:
+ 
+     ///@}
+ 
+-    /** Lock font updates for all output devices
+-
+-     @remark When performing operations that might involve multiple registration of fonts, such as
+-        opening/closing documents with multiple embedded fonts, then each font addition/removal
+-        might cause an event that initiates a rebuild of each OutputDevice's font lists.
+-
+-        Locking font updates disables processing such events, and unlocking causes a single such
+-        processing for all OutputDevices.
+-    */
+-    static void LockFontUpdates(bool bLock);
+-
+     // For vclbootstrapprotector:
+     static void setDeInitHook(Link<LinkParamNone*,void> const & hook);
+ 
+diff --git a/sfx2/source/doc/objstor.cxx b/sfx2/source/doc/objstor.cxx
+index 6d7b3f99ee69..ac9f4242a1bc 100644
+--- a/sfx2/source/doc/objstor.cxx
++++ b/sfx2/source/doc/objstor.cxx
+@@ -582,10 +582,6 @@ bool SfxObjectShell::ImportFromGeneratedStream_Impl(
+ bool SfxObjectShell::DoLoad( SfxMedium *pMed )
+ {
+     ModifyBlocker_Impl aBlock( this );
+-    struct FontLockGuard {
+-        FontLockGuard() { Application::LockFontUpdates(true); }
+-        ~FontLockGuard() { Application::LockFontUpdates(false); }
+-    } aFontLockGuard;
+ 
+     pMedium = pMed;
+     pMedium->CanDisposeStorage_Impl( true );
+diff --git a/vcl/inc/svdata.hxx b/vcl/inc/svdata.hxx
+index e41ec23488b3..dc10f3102ede 100644
+--- a/vcl/inc/svdata.hxx
++++ b/vcl/inc/svdata.hxx
+@@ -338,9 +338,6 @@ struct ImplSVData
+     VclPtr<WorkWindow>      mpDefaultWin;                   // Default-Window
+     bool                    mbDeInit = false;               // Is VCL deinitializing
+     std::unique_ptr<SalSystem> mpSalSystem;                 // SalSystem interface
+-    int                     mnFontUpdatesLockCount = 0;     // avoid repeated font updates
+-    bool                    mbFontUpdatesPending = false;   // need to update font data after unlock
+-    bool                    mbFontUpdatesNewLists = false;  // generate new font lists
+     bool                    mbResLocaleSet = false;         // SV-Resource-Manager
+     std::locale             maResLocale;                    // Resource locale
+     ImplSchedulerContext    maSchedCtx;                     // indepen data for class Scheduler
+diff --git a/vcl/source/app/svapp.cxx b/vcl/source/app/svapp.cxx
+index c4c3be9699e3..de4eac9687fc 100644
+--- a/vcl/source/app/svapp.cxx
++++ b/vcl/source/app/svapp.cxx
+@@ -1036,11 +1036,6 @@ void Application::RemoveUserEvent( ImplSVEvent * nUserEvent )
+     }
+ }
+ 
+-void Application::LockFontUpdates(bool bLock)
+-{
+-    OutputDevice::LockFontUpdates(bLock);
+-}
+-
+ WorkWindow* Application::GetAppWindow()
+ {
+     return ImplGetSVData()->maWinData.mpAppWin;
+diff --git a/vcl/source/outdev/font.cxx b/vcl/source/outdev/font.cxx
+index 22c61063bd21..e1fd7d107e63 100644
+--- a/vcl/source/outdev/font.cxx
++++ b/vcl/source/outdev/font.cxx
+@@ -559,16 +559,7 @@ void OutputDevice::ImplClearAllFontData(bool bNewFontLists)
+ 
+ void OutputDevice::ImplRefreshAllFontData(bool bNewFontLists)
+ {
+-    auto svdata = ImplGetSVData();
+-    DBG_TESTSOLARMUTEX();
+-    if (!svdata->mnFontUpdatesLockCount)
+-        ImplUpdateFontDataForAllFrames(&OutputDevice::ImplRefreshFontData, bNewFontLists);
+-    else
+-    {
+-        svdata->mbFontUpdatesPending = true;
+-        if (bNewFontLists)
+-            svdata->mbFontUpdatesNewLists = true;
+-    }
++    ImplUpdateFontDataForAllFrames( &OutputDevice::ImplRefreshFontData, bNewFontLists );
+ }
+ 
+ void OutputDevice::ImplUpdateAllFontData(bool bNewFontLists)
+@@ -614,27 +605,6 @@ void OutputDevice::ImplUpdateFontDataForAllFrames( const FontUpdateHandler_t pHd
+     }
+ }
+ 
+-void OutputDevice::LockFontUpdates(bool bLock)
+-{
+-    auto svdata = ImplGetSVData();
+-    DBG_TESTSOLARMUTEX();
+-    if (bLock)
+-    {
+-        ++svdata->mnFontUpdatesLockCount;
+-    }
+-    else if (svdata->mnFontUpdatesLockCount > 0)
+-    {
+-        --svdata->mnFontUpdatesLockCount;
+-        if (!svdata->mnFontUpdatesLockCount && svdata->mbFontUpdatesPending)
+-        {
+-            ImplRefreshAllFontData(svdata->mbFontUpdatesNewLists);
+-
+-            svdata->mbFontUpdatesPending = false;
+-            svdata->mbFontUpdatesNewLists = false;
+-        }
+-    }
+-}
+-
+ void OutputDevice::BeginFontSubstitution()
+ {
+     ImplSVData* pSVData = ImplGetSVData();
+-- 
+2.26.2
+

@@ -1,0 +1,82 @@
+From c0e926365dc7651dcb5eee48f50e6990523662ad Mon Sep 17 00:00:00 2001
+From: Eike Rathke <erack@redhat.com>
+Date: Fri, 17 Feb 2023 12:03:54 +0100
+Subject: [PATCH 2/3] Stack check safety belt before fishing in muddy waters
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Have it hit hard in debug builds.
+
+Change-Id: I9ea54844a0661fd7a75616a2876983a74b2d5bad
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/147205
+Reviewed-by: Eike Rathke <erack@redhat.com>
+Tested-by: Jenkins
+(cherry picked from commit 9d91fbba6f374fa1c10b38eae003da89bd4e6d4b)
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/147245
+Reviewed-by: Caolán McNamara <caolanm@redhat.com>
+(cherry picked from commit 166a07062dd4ffedca6106f439a6fcddaeee5eb5)
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/147391
+Tested-by: Michael Stahl <michael.stahl@allotropia.de>
+Reviewed-by: Michael Stahl <michael.stahl@allotropia.de>
+(cherry picked from commit f8efb098f2abbf054a15dcf7daaaacfa575685ae)
+---
+ sc/source/core/inc/interpre.hxx  | 12 ++++++++++++
+ sc/source/core/tool/interpr1.cxx |  4 ++--
+ 2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/sc/source/core/inc/interpre.hxx b/sc/source/core/inc/interpre.hxx
+index 3b902524d901..c7d4527dbf57 100644
+--- a/sc/source/core/inc/interpre.hxx
++++ b/sc/source/core/inc/interpre.hxx
+@@ -235,6 +235,7 @@ private:
+     inline bool MustHaveParamCount( short nAct, short nMust );
+     inline bool MustHaveParamCount( short nAct, short nMust, short nMax );
+     inline bool MustHaveParamCountMin( short nAct, short nMin );
++    inline bool MustHaveParamCountMinWithStackCheck( short nAct, short nMin );
+     void PushParameterExpected();
+     void PushIllegalParameter();
+     void PushIllegalArgument();
+@@ -1086,6 +1087,17 @@ inline bool ScInterpreter::MustHaveParamCountMin( short nAct, short nMin )
+     return false;
+ }
+ 
++inline bool ScInterpreter::MustHaveParamCountMinWithStackCheck( short nAct, short nMin )
++{
++    assert(sp >= nAct);
++    if (sp < nAct)
++    {
++        PushParameterExpected();
++        return false;
++    }
++    return MustHaveParamCountMin( nAct, nMin);
++}
++
+ inline bool ScInterpreter::CheckStringPositionArgument( double & fVal )
+ {
+     if (!rtl::math::isFinite( fVal))
+diff --git a/sc/source/core/tool/interpr1.cxx b/sc/source/core/tool/interpr1.cxx
+index e375f1626ec5..4b093cb62d4f 100644
+--- a/sc/source/core/tool/interpr1.cxx
++++ b/sc/source/core/tool/interpr1.cxx
+@@ -7524,7 +7524,7 @@ void ScInterpreter::ScVLookup()
+ void ScInterpreter::ScSubTotal()
+ {
+     sal_uInt8 nParamCount = GetByte();
+-    if ( MustHaveParamCountMin( nParamCount, 2 ) )
++    if ( MustHaveParamCountMinWithStackCheck( nParamCount, 2 ) )
+     {
+         // We must fish the 1st parameter deep from the stack! And push it on top.
+         const FormulaToken* p = pStack[ sp - nParamCount ];
+@@ -7571,7 +7571,7 @@ void ScInterpreter::ScSubTotal()
+ void ScInterpreter::ScAggregate()
+ {
+     sal_uInt8 nParamCount = GetByte();
+-    if ( MustHaveParamCountMin( nParamCount, 3 ) )
++    if ( MustHaveParamCountMinWithStackCheck( nParamCount, 3 ) )
+     {
+         // fish the 1st parameter from the stack and push it on top.
+         const FormulaToken* p = pStack[ sp - nParamCount ];
+-- 
+2.41.0
+

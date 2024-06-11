@@ -2288,7 +2288,7 @@ gtk-update-icon-cache -q %{_datadir}/icons/hicolor &>/dev/null || :
 %{_includedir}/LibreOfficeKit
 
 %changelog
-* Wed Mar 20 2024 Release Engineering <releng@openela.org> - %{libo_version}.1
+* Tue Jun 11 2024 Release Engineering <releng@openela.org> - %{libo_version}.1
 - Remove Red Hat branding
 - Change vendor to RESF
 

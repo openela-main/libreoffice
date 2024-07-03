@@ -1,5 +1,15 @@
+From f3116910d4f36239bd7733af6d290d48174d58df Mon Sep 17 00:00:00 2001
+From: Alex Burmashev <alexander.burmashev@oracle.com>
+Date: Wed, 3 Jul 2024 09:38:58 +0000
+Subject: [PATCH] OpenELA debranding
+
+Signed-off-by: Alex Burmashev <alexander.burmashev@oracle.com>
+---
+ SPECS/libreoffice.spec | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)
+
 diff --git a/SPECS/libreoffice.spec b/SPECS/libreoffice.spec
-index fbf9d6a..5bb3d48 100644
+index c205ec9..68e8dee 100644
 --- a/SPECS/libreoffice.spec
 +++ b/SPECS/libreoffice.spec
 @@ -12,7 +12,7 @@
@@ -11,7 +21,7 @@ index fbf9d6a..5bb3d48 100644
  %endif
  %if 0%{?fedora}
  %global vendoroption --with-vendor="The Fedora Project"
-@@ -1018,17 +1018,6 @@ git config gc.auto 0 # disable auto packing
+@@ -1019,17 +1019,6 @@ git config gc.auto 0 # disable auto packing
  git add -A
  git commit -q -a -m %{name}-%{version}
  
@@ -29,3 +39,6 @@ index fbf9d6a..5bb3d48 100644
  # apply patches
  git am %{patches}
  
+-- 
+2.43.5
+

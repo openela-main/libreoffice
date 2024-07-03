@@ -54,7 +54,7 @@ Summary:              Free Software Productivity Suite
 Name:                 libreoffice
 Epoch:                1
 Version:              %{libo_version}.2
-Release:              16%{?libo_prerelease}%{?dist}
+Release:              17%{?libo_prerelease}%{?dist}
 License:              (MPLv1.1 or LGPLv3+) and LGPLv3 and LGPLv2+ and BSD and (MPLv1.1 or GPLv2 or LGPLv2 or Netscape) and Public Domain and ASL 2.0 and MPLv2.0 and CC0
 URL:                  http://www.libreoffice.org/
 
@@ -300,6 +300,7 @@ Patch56:              0003-CVE-2023-6186-default-to-ignoring-libreoffice-special
 Patch57:              0004-CVE-2023-6186-reuse-AllowedLinkProtocolFromDocument-in-writer.patch
 Patch58:              0005-CVE-2023-6186-reuse-AllowedLinkProtocolFromDocument-in-impress-dra.patch
 Patch59:              0006-CVE-2023-6186-backporting.patch
+Patch60:              0001-CVE-2024-3044-add-notify-for-script-use.patch
 
 %if 0%{?rhel}
 # not upstreamed
@@ -2295,9 +2296,12 @@ done
 %{_includedir}/LibreOfficeKit
 
 %changelog
-* Thu Mar 28 2024 Release Engineering <releng@openela.org> - %{libo_version}.2
+* Wed Jul 03 2024 Release Engineering <releng@openela.org> - %{libo_version}.2
 - Remove Red Hat branding
 - Change vendor to RESF
+
+* Fri Jun 07 2024 Eike Rathke <erack@redhat.com> - 1:6.4.7.2-17
+- Fix CVE-2024-3044 add notify for script use
 
 * Mon Mar 11 2024 Eike Rathke <erack@redhat.com> - 1:6.4.7.2-16
 - Fix CVE-2023-6185 escape url passed to gstreamer

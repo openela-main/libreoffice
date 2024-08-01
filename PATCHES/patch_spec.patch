@@ -1,5 +1,9 @@
+---
+ SPECS/libreoffice.spec | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)
+
 diff --git a/SPECS/libreoffice.spec b/SPECS/libreoffice.spec
-index c35834b..ab4f1b3 100644
+index dd2eb15..7a891bc 100644
 --- a/SPECS/libreoffice.spec
 +++ b/SPECS/libreoffice.spec
 @@ -8,7 +8,7 @@
@@ -11,7 +15,7 @@ index c35834b..ab4f1b3 100644
  %endif
  %if 0%{?fedora}
  %global vendoroption --with-vendor="The Fedora Project"
-@@ -1035,17 +1035,6 @@
+@@ -1036,17 +1036,6 @@ rm -rf git-hooks */git-hooks
  %global __scm git_am
  %__scm_setup_git_am
  
@@ -29,3 +33,6 @@ index c35834b..ab4f1b3 100644
  # apply patches
  %autopatch -M 99
  %if 0%{?rhel}
+-- 
+2.43.5
+

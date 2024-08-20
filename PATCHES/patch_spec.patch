@@ -1,9 +1,14 @@
+From 9e29fee73a3c62b762cbdaa10d0a9493d3b36d7b Mon Sep 17 00:00:00 2001
+From: Alex Burmashev <alexander.burmashev@oracle.com>
+Date: Tue, 20 Aug 2024 08:57:17 +0000
+Subject: [PATCH] test
+
 ---
  SPECS/libreoffice.spec | 13 +------------
  1 file changed, 1 insertion(+), 12 deletions(-)
 
 diff --git a/SPECS/libreoffice.spec b/SPECS/libreoffice.spec
-index dd2eb15..7a891bc 100644
+index a879edf..ddb11ef 100644
 --- a/SPECS/libreoffice.spec
 +++ b/SPECS/libreoffice.spec
 @@ -8,7 +8,7 @@
@@ -15,7 +20,7 @@ index dd2eb15..7a891bc 100644
  %endif
  %if 0%{?fedora}
  %global vendoroption --with-vendor="The Fedora Project"
-@@ -1036,17 +1036,6 @@ rm -rf git-hooks */git-hooks
+@@ -1037,17 +1037,6 @@ rm -rf git-hooks */git-hooks
  %global __scm git_am
  %__scm_setup_git_am
  

@@ -57,7 +57,7 @@ Summary:              Free Software Productivity Suite
 Name:                 libreoffice
 Epoch:                1
 Version:              %{libo_version}.1
-Release:              13%{?libo_prerelease}%{?dist}
+Release:              14%{?libo_prerelease}%{?dist}
 License:              (MPLv1.1 or LGPLv3+) and LGPLv3 and LGPLv2+ and BSD and (MPLv1.1 or GPLv2 or LGPLv2 or Netscape) and Public Domain and ASL 2.0 and MPLv2.0 and CC0
 URL:                  http://www.libreoffice.org/
 
@@ -297,6 +297,7 @@ Patch41:              0004-CVE-2023-6186-reuse-AllowedLinkProtocolFromDocument-i
 Patch42:              0005-CVE-2023-6186-reuse-AllowedLinkProtocolFromDocument-in-impress-dra.patch
 Patch43:              0006-CVE-2023-6186-backporting.patch
 Patch44:              0001-CVE-2024-3044-add-notify-for-script-use.patch
+Patch45:              0001-CVE-2024-6472-remove-ability-to-trust-not-validated-macro-signatur.patch
 
 # not upstreamed
 Patch500:             0001-disable-libe-book-support.patch
@@ -2289,9 +2290,13 @@ gtk-update-icon-cache -q %{_datadir}/icons/hicolor &>/dev/null || :
 %{_includedir}/LibreOfficeKit
 
 %changelog
-* Thu Aug 01 2024 Release Engineering <releng@openela.org> - %{libo_version}.1
+* Tue Aug 20 2024 Release Engineering <releng@openela.org> - %{libo_version}.1
 - Remove Red Hat branding
 - Change vendor to RESF
+
+* Thu Aug 15 2024 Eike Rathke <erack@redhat.com> - 1:7.1.8.1-14
+- Fix CVE-2024-6472 remove ability to trust not validated macro signatures in
+  high security
 
 * Fri Jun 07 2024 Eike Rathke <erack@redhat.com> - 1:7.1.8.1-13
 - Fix CVE-2024-3044 add notify for script use
